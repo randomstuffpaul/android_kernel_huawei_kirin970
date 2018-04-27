@@ -38,13 +38,41 @@
 /* Should be same as EXT4_XATTR_INDEX_ENCRYPTION */
 #define F2FS_XATTR_INDEX_ENCRYPTION		9
 
-#define F2FS_XATTR_NAME_ENCRYPTION_CONTEXT	"c"
+#define F2FS_XATTR_INDEX_ECE_ENCRYPTION	10
+
+
+#define F2FS_XATTR_NAME_ENCRYPTION_CONTEXT		"c"
+
+/*means xattr sdp ece crypt is enabled*/
+#define F2FS_XATTR_SDP_ECE_ENABLE_FLAG           1
+/*means xattr sdp ece crypt is be config, but may not be enabled*/
+#define F2FS_XATTR_SDP_ECE_CONFIG_FLAG           2
+/*means xattr sdp sece crypt is enabled*/
+#define F2FS_XATTR_SDP_SECE_ENABLE_FLAG          4
+/*means xattr sdp sece crypt is be config, but may not be enabled*/
+#define F2FS_XATTR_SDP_SECE_CONFIG_FLAG          8
 
 struct f2fs_xattr_header {
 	__le32  h_magic;        /* magic number for identification */
 	__le32  h_refcount;     /* reference count */
-	__u32   h_reserved[4];  /* zero right now */
+	__le32	h_ctx_crc;	/* crc for fscrypt, zero if not used */
+	__le32	h_xattr_flags;	/* flags to  check the xattr entry*/
+	__u32   h_reserved[2];  /* zero right now */
 };
+#define F2FS_INODE_IS_CONFIG_SDP_ECE_ENCRYPTION(flag)    \
+	((flag) & (F2FS_XATTR_SDP_ECE_CONFIG_FLAG))
+#define F2FS_INODE_IS_CONFIG_SDP_SECE_ENCRYPTION(flag)   \
+	((flag) & (F2FS_XATTR_SDP_SECE_CONFIG_FLAG))
+#define F2FS_INODE_IS_CONFIG_SDP_ENCRYPTION(flag)        \
+	(((flag) & (F2FS_XATTR_SDP_SECE_CONFIG_FLAG))    \
+	 || ((flag) & (F2FS_XATTR_SDP_ECE_CONFIG_FLAG)))
+#define F2FS_INODE_IS_ENABLED_SDP_ECE_ENCRYPTION(flag)   \
+	((flag) & (F2FS_XATTR_SDP_ECE_ENABLE_FLAG))
+#define F2FS_INODE_IS_ENABLED_SDP_SECE_ENCRYPTION(flag)  \
+	((flag) & (F2FS_XATTR_SDP_SECE_ENABLE_FLAG))
+#define F2FS_INODE_IS_ENABLED_SDP_ENCRYPTION(flag)       \
+	(((flag) & (F2FS_XATTR_SDP_ECE_ENABLE_FLAG))     \
+	 || ((flag) & (F2FS_XATTR_SDP_SECE_ENABLE_FLAG)))
 
 struct f2fs_xattr_entry {
 	__u8    e_name_index;
@@ -72,9 +100,10 @@ struct f2fs_xattr_entry {
 		for (entry = XATTR_FIRST_ENTRY(addr);\
 				!IS_XATTR_LAST_ENTRY(entry);\
 				entry = XATTR_NEXT_ENTRY(entry))
-
-#define MIN_OFFSET(i)	XATTR_ALIGN(inline_xattr_size(i) + PAGE_SIZE -	\
-				sizeof(struct node_footer) - sizeof(__u32))
+#define MAX_XATTR_BLOCK_SIZE	(PAGE_SIZE - sizeof(struct node_footer))
+#define VALID_XATTR_BLOCK_SIZE	(MAX_XATTR_BLOCK_SIZE - sizeof(__u32))
+#define MIN_OFFSET(i)		XATTR_ALIGN(inline_xattr_size(i) +	\
+						VALID_XATTR_BLOCK_SIZE)
 
 #define MAX_VALUE_LEN(i)	(MIN_OFFSET(i) -			\
 				sizeof(struct f2fs_xattr_header) -	\
@@ -120,19 +149,25 @@ extern const struct xattr_handler *f2fs_xattr_handlers[];
 extern int f2fs_setxattr(struct inode *, int, const char *,
 				const void *, size_t, struct page *, int);
 extern int f2fs_getxattr(struct inode *, int, const char *, void *,
-						size_t, struct page *);
+				size_t, struct page *, int *);
 extern ssize_t f2fs_listxattr(struct dentry *, char *, size_t);
+
+int set_fscrypt_crc(struct inode *, struct page *, u32);
+struct f2fs_xattr_header* get_xattr_header(struct inode *, struct page *,
+					   struct page **);
+void put_xattr_header(struct page *);
 #else
 
 #define f2fs_xattr_handlers	NULL
 static inline int f2fs_setxattr(struct inode *inode, int index,
-		const char *name, const void *value, size_t size, int flags)
+		const char *name, const void *value, size_t size,
+		struct page *page, int flags)
 {
 	return -EOPNOTSUPP;
 }
 static inline int f2fs_getxattr(struct inode *inode, int index,
 			const char *name, void *buffer,
-			size_t buffer_size, struct page *dpage)
+			size_t buffer_size, struct page *dpage, int *has_crc)
 {
 	return -EOPNOTSUPP;
 }

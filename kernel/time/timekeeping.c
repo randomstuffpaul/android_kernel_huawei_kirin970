@@ -277,8 +277,7 @@ static void tk_setup_internals(struct timekeeper *tk, struct clocksource *clock)
 	/* Go back from cycles -> shifted ns */
 	tk->xtime_interval = (u64) interval * clock->mult;
 	tk->xtime_remainder = ntpinterval - tk->xtime_interval;
-	tk->raw_interval =
-		((u64) interval * clock->mult) >> clock->shift;
+	tk->raw_interval = interval * clock->mult;
 
 	 /* if changing clocks, convert xtime_nsec shift units */
 	if (old_clock) {
@@ -441,6 +440,35 @@ u64 ktime_get_raw_fast_ns(void)
 	return __ktime_get_fast_ns(&tk_fast_raw);
 }
 EXPORT_SYMBOL_GPL(ktime_get_raw_fast_ns);
+
+/**
+ * ktime_get_boot_fast_ns - NMI safe and fast access to boot clock.
+ *
+ * To keep it NMI safe since we're accessing from tracing, we're not using a
+ * separate timekeeper with updates to monotonic clock and boot offset
+ * protected with seqlocks. This has the following minor side effects:
+ *
+ * (1) Its possible that a timestamp be taken after the boot offset is updated
+ * but before the timekeeper is updated. If this happens, the new boot offset
+ * is added to the old timekeeping making the clock appear to update slightly
+ * earlier:
+ *    CPU 0                                        CPU 1
+ *    timekeeping_inject_sleeptime64()
+ *    __timekeeping_inject_sleeptime(tk, delta);
+ *                                                 timestamp();
+ *    timekeeping_update(tk, TK_CLEAR_NTP...);
+ *
+ * (2) On 32-bit systems, the 64-bit boot offset (tk->offs_boot) may be
+ * partially updated.  Since the tk->offs_boot update is a rare event, this
+ * should be a rare occurrence which postprocessing should be able to handle.
+ */
+u64 notrace ktime_get_boot_fast_ns(void)
+{
+	struct timekeeper *tk = &tk_core.timekeeper;
+
+	return (ktime_get_mono_fast_ns() + ktime_to_ns(tk->offs_boot));
+}
+EXPORT_SYMBOL_GPL(ktime_get_boot_fast_ns);
 
 /* Suspend-time cycles value for halted fast timekeeper. */
 static cycle_t cycles_at_suspend;
@@ -1767,7 +1795,7 @@ static cycle_t logarithmic_accumulation(struct timekeeper *tk, cycle_t offset,
 						unsigned int *clock_set)
 {
 	cycle_t interval = tk->cycle_interval << shift;
-	u64 raw_nsecs;
+	u64 snsec_per_sec;
 
 	/* If the offset is smaller than a shifted interval, do nothing */
 	if (offset < interval)
@@ -1782,14 +1810,15 @@ static cycle_t logarithmic_accumulation(struct timekeeper *tk, cycle_t offset,
 	*clock_set |= accumulate_nsecs_to_secs(tk);
 
 	/* Accumulate raw time */
-	raw_nsecs = (u64)tk->raw_interval << shift;
-	raw_nsecs += tk->raw_time.tv_nsec;
-	if (raw_nsecs >= NSEC_PER_SEC) {
-		u64 raw_secs = raw_nsecs;
-		raw_nsecs = do_div(raw_secs, NSEC_PER_SEC);
-		tk->raw_time.tv_sec += raw_secs;
+	tk->tkr_raw.xtime_nsec += (u64)tk->raw_time.tv_nsec << tk->tkr_raw.shift;
+	tk->tkr_raw.xtime_nsec += tk->raw_interval << shift;
+	snsec_per_sec = (u64)NSEC_PER_SEC << tk->tkr_raw.shift;
+	while (tk->tkr_raw.xtime_nsec >= snsec_per_sec) {
+		tk->tkr_raw.xtime_nsec -= snsec_per_sec;
+		tk->raw_time.tv_sec++;
 	}
-	tk->raw_time.tv_nsec = raw_nsecs;
+	tk->raw_time.tv_nsec = tk->tkr_raw.xtime_nsec >> tk->tkr_raw.shift;
+	tk->tkr_raw.xtime_nsec -= (u64)tk->raw_time.tv_nsec << tk->tkr_raw.shift;
 
 	/* Accumulate error between NTP and clock interval */
 	tk->ntp_error += tk->ntp_tick << shift;

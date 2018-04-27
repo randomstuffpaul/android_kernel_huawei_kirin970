@@ -520,7 +520,7 @@ __u16 ip6_tnl_parse_tlv_enc_lim(struct sk_buff *skb, __u8 *raw)
 				if (i + sizeof(*tel) > optlen)
 					break;
 
-				tel = (struct ipv6_tlv_tnl_enc_lim *)(skb->data + off + i);
+				tel = (struct ipv6_tlv_tnl_enc_lim *) (skb->data + off + i);
 				/* return index of option if found and valid */
 				if (tel->type == IPV6_TLV_TNL_ENCAP_LIMIT &&
 				    tel->length == 1)
@@ -1215,6 +1215,8 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
 	fl6.flowi6_proto = IPPROTO_IPIP;
 
+	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
+
 	dsfield = ipv4_get_dsfield(iph);
 
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
@@ -1268,6 +1270,7 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
 	fl6.flowi6_proto = IPPROTO_IPV6;
+	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
 
 	dsfield = ipv6_get_dsfield(ipv6h);
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
