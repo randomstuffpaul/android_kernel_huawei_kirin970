@@ -1,7 +1,7 @@
 #ifndef __LINUX_SHMEM_H__
 #define __LINUX_SHMEM_H__
-#include "protocol.h"
 
+#include "../huawei_platform/inputhub/default/protocol.h"
 #include <iomcu_ddr_map.h>
 
 #define HISI_RESERVED_CH_BLOCK_SHMEM_PHYMEM_BASE       DDR_SHMEM_LARGE_BLK_BASE_AP

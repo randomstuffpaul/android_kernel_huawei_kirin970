@@ -41,7 +41,6 @@
 #define CREATE_TRACE_POINTS
 #include "trace_hisp.h"
 
-
 static struct dsm_dev dev_hisp = {
 	.name = "dsm_hisp",
 	.device_name = NULL,

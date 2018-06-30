@@ -10,7 +10,7 @@
  * Copyright (c) 2001-2021, Huawei Tech. Co., Ltd. All rights reserved.
  */
 
-#include "./include/sescan.h"
+#include "include/sescan.h"
 #include <linux/version.h>
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0)

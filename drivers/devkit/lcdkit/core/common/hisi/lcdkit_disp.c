@@ -11,6 +11,7 @@
 #include "lcdkit_btb_check.h"
 #include "lcdkit_ext.h"
 #include "global_ddr_map.h"
+#include "lcdkit_bias_bl_utility.h"
 #include "lcdkit_bias_ic_common.h"
 #include "lcdkit_backlight_ic_common.h"
 #if defined(CONFIG_LCDKIT_DRIVER)
