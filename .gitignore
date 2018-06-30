@@ -37,6 +37,8 @@ modules.builtin
 Module.symvers
 *.dwo
 *.su
+*.dtbo
+*.pyc
 
 #
 # Top-level generic files
@@ -73,6 +75,7 @@ Module.symvers
 include/config
 include/generated
 arch/*/include/generated
+drivers/huawei_platform/oases/inlinehook_offset.h
 
 # stgit generated dirs
 patches-*
@@ -112,3 +115,7 @@ all.config
 
 # Kdevelop4
 *.kdev4
+
+# Other huawei stuff
+drivers/hisi/tzdriver/cfc_data.c
+drivers/hisi/tzdriver/rule.out
