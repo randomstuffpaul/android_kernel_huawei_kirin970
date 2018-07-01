@@ -9587,9 +9587,8 @@ oal_int32  wal_hipriv_wait_rsp(oal_net_device_stru *pst_net_dev, oal_int8 *pc_pa
 
 
 OAL_STATIC oal_int32  wal_hipriv_proc_write(oal_file_stru *pst_file, oal_int8 *pc_buffer, oal_uint32 ul_len, oal_void *p_data)
-#else
+#elif defined(CONFIG_HI110X_KERNEL_MODULES_BUILD_SUPPORT)
 OAL_STATIC oal_int32  wal_hipriv_proc_write(oal_file_stru *pst_file, const oal_int8 *pc_buffer, oal_uint32 ul_len, oal_void *p_data)
-#endif
 {
     oal_int8                    *pc_cmd;
     oal_uint32                  ul_ret;
@@ -9665,6 +9664,7 @@ OAL_STATIC oal_int32  wal_hipriv_proc_write(oal_file_stru *pst_file, const oal_i
     return (oal_int32)ul_len;
 
 }
+#endif
 
 
 oal_uint32  wal_hipriv_create_proc(oal_void *p_proc_arg)
